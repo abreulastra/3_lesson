@@ -83,24 +83,20 @@ station_ids = ['_' + str(x) + ' INT' for x in station_ids]
 with con:
     cur.execute('DROP TABLE IF EXISTS available_bikes')    
     cur.execute("CREATE TABLE available_bikes (execution_time INT, " + ", ".join(station_ids) + ");")
-
+    con.commit()
 
 ## now we need to loop this code over an hour
-    
-x = 0
 
 for x in range(60):
     
     # Upddate the database    
     r = requests.get('http://www.citibikenyc.com/stations/json')
-
-    df = json_normalize(r.json()['stationBeanList'])
         
     exec_time = parse(r.json()['executionTime'])
     
     with con:
         cur.execute("INSERT INTO available_bikes (execution_time) VALUES (?)", (exec_time.strftime('%s'),))
-    
+        con.commit() 
     
     id_bikes = collections.defaultdict(int)
     #loop through the stations in the station list
@@ -111,7 +107,15 @@ for x in range(60):
     with con:
         for k, v in id_bikes.iteritems():
             cur.execute("UPDATE available_bikes SET _" + str(k) + " = " + str(v) + " WHERE execution_time = " + exec_time.strftime('%s') + ";")
-            
+            con.commit() 
+           
+        
     print(x)
     print(exec_time)
+    if x % 5 == 0:
+        example = pd.read_sql('select * from available_bikes', con)
+        print(example.tail())       
+    print(exec_time)
     time.sleep(60)
+
+con.close()
